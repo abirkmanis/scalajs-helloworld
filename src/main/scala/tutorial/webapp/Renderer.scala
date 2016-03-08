@@ -33,18 +33,12 @@ class Renderer(val images: Map[String, HTMLImageElement]) {
     {
       val codesToCommands = Map(87 -> "up", 65 -> "left", 83 -> "down", 68 -> "right")
       document.onkeydown = { e: KeyboardEvent =>
-        console.log(e.keyCode)
         val command = codesToCommands.getOrElse(e.keyCode, "")
-        console.log(command)
         activeCommands += command
-        console.log(activeCommands.toString())
       }
       document.onkeyup = { e: KeyboardEvent =>
-        console.log(e.keyCode)
         val command = codesToCommands.getOrElse(e.keyCode, "")
-        console.log(command)
         activeCommands -= command
-        console.log(activeCommands.toString())
       }
     }
 
@@ -55,7 +49,7 @@ class Renderer(val images: Map[String, HTMLImageElement]) {
     // todo: macro generate ProgramX from its uniforms/attributes and shader sources
     {
       val program = new ProgramAll()
-      var dx = 0f
+      var dx = 2f
       var dy = 0f
       drawables += { () =>
         if (activeCommands.contains("left"))
@@ -67,6 +61,7 @@ class Renderer(val images: Map[String, HTMLImageElement]) {
         if (activeCommands.contains("up"))
           dy -= 0.02f
         val projectionMatrix = new Matrix4(45, canvas.width.toFloat / canvas.height, .1f, 10)
+        console.log(dx + ", " + dy)
         val viewMatrix = new Matrix4(dx, dy, 4)
         program.render(projectionMatrix, viewMatrix)
       }
@@ -88,6 +83,18 @@ class Renderer(val images: Map[String, HTMLImageElement]) {
         .buildSquare(-1, -1, 1)
         .buildSquare(0, -1, 1)
         .buildSquare(1, -1, 1)
+        .compile
+
+      program.newDrawable(images("metal.jpg"))
+        .buildSquare(-2, 1, 2)
+        .buildSquare(-2, 0, 2)
+        .buildSquare(-2, -1, 2)
+        .compile
+
+      program.newDrawable(images("scratched.jpg"))
+        .buildSquare(-1, 1, 1, X)
+        .buildSquare(-1, 0, 1, X)
+        .buildSquare(-1, -1, 1, X)
         .compile
     }
 

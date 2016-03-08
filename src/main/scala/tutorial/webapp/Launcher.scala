@@ -39,6 +39,8 @@ object Launcher extends JSApp {
   def main(): Unit = {
     loadImage("stucco.jpg")
     loadImage("stone.jpg")
+    loadImage("metal.jpg")
+    loadImage("scratched.jpg")
     ready()
   }
 }
