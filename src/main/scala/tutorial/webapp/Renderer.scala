@@ -49,7 +49,7 @@ class Renderer(val images: Map[String, HTMLImageElement]) {
     }
 
     gl.clearColor(0.0, 0.0, 0.0, 1.0)
-//    gl.enable(CULL_FACE)
+    gl.enable(CULL_FACE)
     gl.enable(DEPTH_TEST)
 
     // todo: macro generate ProgramX from its uniforms/attributes and shader sources
@@ -59,13 +59,13 @@ class Renderer(val images: Map[String, HTMLImageElement]) {
       var dy = 0f
       drawables += { () =>
         if (activeCommands.contains("left"))
-          dx += 0.01f
+          dx += 0.02f
         if (activeCommands.contains("right"))
-          dx -= 0.01f
+          dx -= 0.02f
         if (activeCommands.contains("down"))
-          dy += 0.01f
+          dy += 0.02f
         if (activeCommands.contains("up"))
-          dy -= 0.01f
+          dy -= 0.02f
         val projectionMatrix = new Matrix4(45, canvas.width.toFloat / canvas.height, .1f, 10)
         val viewMatrix = new Matrix4(dx, dy, 4)
         program.render(projectionMatrix, viewMatrix)
@@ -75,8 +75,8 @@ class Renderer(val images: Map[String, HTMLImageElement]) {
         .buildSquare(0, 0, 0, X)
         .buildSquare(0, 0, 0, Y)
         .buildSquare(0, 0, 0, Z)
-        .buildSquare(1, 0, 0, X)
-        .buildSquare(0, 1, 0, Y)
+        .buildSquare(1, 0, 0, _X)
+        .buildSquare(0, 1, 0, _Y)
         .compile
 
       program.newDrawable(images("stone.jpg"))

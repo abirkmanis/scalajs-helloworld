@@ -10,6 +10,9 @@ object NormalAxis {
   val Z = 0
   val Y = 1
   val X = 2
+  val _Z = 3
+  val _Y = 4
+  val _X = 5
 }
 
 class ProgramAll(implicit val gl: raw.WebGLRenderingContext) {
@@ -76,12 +79,15 @@ class ProgramAll(implicit val gl: raw.WebGLRenderingContext) {
       val dy = d((1 + normalAxis) % 3)
       val dz = d((2 + normalAxis) % 3)
       val start = positions.size
-      addVertex(Vector3(x0 + dx(0), y0 + dy(0), z0 + dz(0)), Vector2(d(0)(0), d(1)(0)))
-        .addVertex(Vector3(x0 + dx(1), y0 + dy(1), z0 + dz(1)), Vector2(d(0)(1), d(1)(1)))
-        .addVertex(Vector3(x0 + dx(2), y0 + dy(2), z0 + dz(2)), Vector2(d(0)(2), d(1)(2)))
-        .addVertex(Vector3(x0 + dx(3), y0 + dy(3), z0 + dz(3)), Vector2(d(0)(3), d(1)(3)))
-        .addTriangle(start + 0, start + 1, start + 2)
-        .addTriangle(start + 0, start + 2, start + 3)
+      (0 to 3).foreach { i => addVertex(Vector3(x0 + dx(i), y0 + dy(i), z0 + dz(i)), Vector2(d(0)(i), d(1)(i))) }
+      if (normalAxis < 3) {
+        addTriangle(start + 0, start + 1, start + 2)
+        addTriangle(start + 0, start + 2, start + 3)
+      }
+      else {
+        addTriangle(start + 3, start + 2, start + 0)
+        addTriangle(start + 2, start + 1, start + 0)
+      }
     }
   }
 
