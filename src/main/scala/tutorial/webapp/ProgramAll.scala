@@ -79,7 +79,7 @@ class ProgramAll(implicit val gl: raw.WebGLRenderingContext) {
       val dy = d((1 + normalAxis) % 3)
       val dz = d((2 + normalAxis) % 3)
       val start = positions.size
-      (0 to 3).foreach { i => addVertex(Vector3(x0 + dx(i), y0 + dy(i), z0 + dz(i)), Vector2(d(0)(i), d(1)(i))) }
+      (0 to 3).foreach { i => addVertex(Vector3(x0 + dx(i), y0 + dy(i), z0 + dz(i)), Vector2(d(0)(i), d(1)(i)), Color(x0 + dx(i), y0 + dy(i), z0 + dz(i), 1)) }
       if (normalAxis < 3) {
         addTriangle(start + 0, start + 1, start + 2)
         addTriangle(start + 0, start + 2, start + 3)
