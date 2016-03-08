@@ -70,11 +70,11 @@ class Renderer(val images: Map[String, HTMLImageElement]) {
         program.render(projectionMatrix, viewMatrix)
       }
 
-      program.newDrawable(TRIANGLES, images("stucco.jpg"))
+      program.newDrawable(images("stucco.jpg"))
         .buildSquare(0, 0, 0)
         .compile
 
-      program.newDrawable(TRIANGLES, images("stone.jpg"))
+      program.newDrawable(images("stone.jpg"))
         .buildSquare(0, 1, 1)
         .buildSquare(1, 0, 1)
         .buildSquare(1, 1, 1)

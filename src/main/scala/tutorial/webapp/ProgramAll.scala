@@ -8,10 +8,11 @@ import scala.scalajs.js.typedarray.{Float32Array, Int8Array}
 
 class ProgramAll(implicit val gl: raw.WebGLRenderingContext) {
 
+  // todo: VAO (is not in WebGL 1.0, is in OES_vertex_array_object - is it worth it?)
+  // Encapsulates data needed for a single call to a glDraw* - glDrawElements in this case.
+  // All attributes are interleaved in a single VBO.
   case class Drawable(mode: Int, vbo: WebGLBuffer, ibo: WebGLBuffer, texture: WebGLTexture, count: Int)
 
-  // todo: indexed vertices
-  // todo: VAO (is not in WebGL 1.0, is in OES_vertex_array_object - is it worth it?)
   class DrawableBuilder(val callback: Drawable => {}, val mode: Int, val image: HTMLImageElement)(implicit gl: WebGLRenderingContext) {
     val positions = scala.collection.mutable.Buffer[Vector3]()
     val uvs = scala.collection.mutable.Buffer[Vector2]()
@@ -128,7 +129,7 @@ class ProgramAll(implicit val gl: raw.WebGLRenderingContext) {
 
   val drawables = scala.collection.mutable.Buffer[Drawable]()
 
-  def newDrawable(mode: Int, image: HTMLImageElement) = new DrawableBuilder((d: Drawable) => drawables += d, mode, image)
+  def newDrawable(image: HTMLImageElement, mode: Int = TRIANGLES) = new DrawableBuilder((d: Drawable) => drawables += d, mode, image)
 
   def use = {
     gl.useProgram(program)
