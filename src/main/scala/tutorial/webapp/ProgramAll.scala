@@ -8,6 +8,8 @@ import scala.scalajs.js.typedarray.Float32Array
 
 case class Drawable(mode: Int, texture: WebGLTexture, count: Int, position: Attribute, uv: Attribute, color: Attribute)
 
+// todo: indexed vertices
+// todo: VAO (is not in WebGL 1.0, is in OES_vertex_array_object - is it worth it?)
 class DrawableBuilder(val callback: Drawable => {}, val mode: Int, val image: HTMLImageElement)(implicit gl: WebGLRenderingContext) {
   val positions = scala.collection.mutable.Buffer[Vector3]()
   val uvs = scala.collection.mutable.Buffer[Vector2]()
@@ -38,24 +40,33 @@ class DrawableBuilder(val callback: Drawable => {}, val mode: Int, val image: HT
 
   def compile: Drawable = {
     val count = positions.size
-    val position = new Float32Array(3 * count)
-    positions.zipWithIndex.foreach { case (e, i) => e.toArray(position, 3 * i) }
-    val uv = new Float32Array(2 * count)
-    uvs.zipWithIndex.foreach { case (e, i) => e.toArray(uv, 2 * i) }
-    val color = new Float32Array(4 * count)
-    colors.zipWithIndex.foreach { case (e, i) => e.toArray(color, 4 * i) }
-    val drawable = Drawable(mode, Texture.toTexture(image), count, new Attribute(new Float32Array(position)), new Attribute(new Float32Array(uv)), new Attribute(new Float32Array(color)))
+    val stride = 3 + 2 + 4
+    val values = new Float32Array(stride * count)
+
+    positions.zipWithIndex.foreach { case (e, i) => e.toArray(values, stride * i) }
+    uvs.zipWithIndex.foreach { case (e, i) => e.toArray(values, stride * i + 3) }
+    colors.zipWithIndex.foreach { case (e, i) => e.toArray(values, stride * i + 3 + 2) }
+
+    val vbo = gl.createBuffer()
+    gl.bindBuffer(ARRAY_BUFFER, vbo)
+    gl.bufferData(ARRAY_BUFFER, values, STATIC_DRAW)
+
+    val drawable = Drawable(mode, Texture.toTexture(image), count,
+      new Attribute(vbo, stride * 4, 0 * 4),
+      new Attribute(vbo, stride * 4, 3 * 4),
+      new Attribute(vbo, stride * 4, (3 + 2) * 4))
+
     callback(drawable)
     drawable
   }
 
   def buildSquare(x0: Int, y0: Int, z: Int) = {
     addVertex(Vector3(x0, y0, z))
-    .addVertex(Vector3(x0 + 1, y0, z))
-    .addVertex(Vector3(x0 + 1, y0 + 1, z))
-    .addVertex(Vector3(x0, y0, z))
-    .addVertex(Vector3(x0 + 1, y0 + 1, z))
-    .addVertex(Vector3(x0, y0 + 1, z))
+      .addVertex(Vector3(x0 + 1, y0, z))
+      .addVertex(Vector3(x0 + 1, y0 + 1, z))
+      .addVertex(Vector3(x0, y0, z))
+      .addVertex(Vector3(x0 + 1, y0 + 1, z))
+      .addVertex(Vector3(x0, y0 + 1, z))
   }
 }
 
@@ -125,13 +136,13 @@ class ProgramAll(implicit val gl: raw.WebGLRenderingContext) {
       gl.uniform1i(texture, 0)
 
       gl.bindBuffer(ARRAY_BUFFER, d.position.buffer)
-      gl.vertexAttribPointer(this.position, 3, FLOAT, false, d.position.offset, d.position.stride)
+      gl.vertexAttribPointer(this.position, 3, FLOAT, false, d.position.stride, d.position.offset)
 
       gl.bindBuffer(ARRAY_BUFFER, d.uv.buffer)
-      gl.vertexAttribPointer(this.uv, 2, FLOAT, false, d.uv.offset, d.uv.stride)
+      gl.vertexAttribPointer(this.uv, 2, FLOAT, false, d.uv.stride, d.uv.offset)
 
       gl.bindBuffer(ARRAY_BUFFER, d.color.buffer)
-      gl.vertexAttribPointer(this.color, 4, FLOAT, false, d.color.offset, d.color.stride)
+      gl.vertexAttribPointer(this.color, 4, FLOAT, false, d.color.stride, d.color.offset)
 
       gl.drawArrays(d.mode, 0, d.count)
     }

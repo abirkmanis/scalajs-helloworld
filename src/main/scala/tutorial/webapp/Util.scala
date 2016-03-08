@@ -87,8 +87,7 @@ class Matrix4() {
   }
 
   def toArray(destination: Float32Array, i: Int): Unit = {
-    for (j <- 0 to 15)
-      destination(i + j) = array(j)
+    destination.set(array)
   }
 
   def asArray = array
