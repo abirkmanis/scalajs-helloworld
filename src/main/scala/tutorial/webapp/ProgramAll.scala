@@ -2,75 +2,89 @@ package tutorial.webapp
 
 import org.scalajs.dom.raw
 import org.scalajs.dom.raw.WebGLRenderingContext._
-import org.scalajs.dom.raw.{HTMLImageElement, WebGLRenderingContext, WebGLTexture}
+import org.scalajs.dom.raw.{HTMLImageElement, WebGLBuffer, WebGLRenderingContext, WebGLTexture}
 
-import scala.scalajs.js.typedarray.Float32Array
-
-case class Drawable(mode: Int, texture: WebGLTexture, count: Int, position: Attribute, uv: Attribute, color: Attribute)
-
-// todo: indexed vertices
-// todo: VAO (is not in WebGL 1.0, is in OES_vertex_array_object - is it worth it?)
-class DrawableBuilder(val callback: Drawable => {}, val mode: Int, val image: HTMLImageElement)(implicit gl: WebGLRenderingContext) {
-  val positions = scala.collection.mutable.Buffer[Vector3]()
-  val uvs = scala.collection.mutable.Buffer[Vector2]()
-  val colors = scala.collection.mutable.Buffer[Color]()
-
-  def addVertex(position: Vector3, uv: Vector2, color: Color): DrawableBuilder = {
-    positions += position
-    uvs += uv
-    colors += color
-    this
-  }
-
-  def addVertex(position: Vector3, color: Color): DrawableBuilder = {
-    positions += position
-    uvs += Vector2(position.x, position.y)
-    colors += color
-    this
-  }
-
-  val white = Color(1, 1, 1, 1)
-
-  def addVertex(position: Vector3): DrawableBuilder = {
-    positions += position
-    uvs += Vector2(position.x, position.y)
-    colors += white
-    this
-  }
-
-  def compile: Drawable = {
-    val count = positions.size
-    val stride = 3 + 2 + 4
-    val values = new Float32Array(stride * count)
-
-    positions.zipWithIndex.foreach { case (e, i) => e.toArray(values, stride * i) }
-    uvs.zipWithIndex.foreach { case (e, i) => e.toArray(values, stride * i + 3) }
-    colors.zipWithIndex.foreach { case (e, i) => e.toArray(values, stride * i + 3 + 2) }
-
-    val vbo = gl.createBuffer()
-    gl.bindBuffer(ARRAY_BUFFER, vbo)
-    gl.bufferData(ARRAY_BUFFER, values, STATIC_DRAW)
-
-    val drawable = Drawable(mode, Texture.toTexture(image), count,
-      new Attribute(vbo, stride * 4, 0 * 4),
-      new Attribute(vbo, stride * 4, 3 * 4),
-      new Attribute(vbo, stride * 4, (3 + 2) * 4))
-
-    callback(drawable)
-    drawable
-  }
-
-  def buildSquare(x0: Int, y0: Int, z: Int) = {
-    addVertex(Vector3(x0, y0, z))
-      .addVertex(Vector3(x0 + 1, y0, z))
-      .addVertex(Vector3(x0 + 1, y0 + 1, z))
-      .addVertex(Vector3(x0, y0, z))
-      .addVertex(Vector3(x0 + 1, y0 + 1, z))
-      .addVertex(Vector3(x0, y0 + 1, z))
-  }
-}
+import scala.scalajs.js.typedarray.{Float32Array, Int8Array}
 
 class ProgramAll(implicit val gl: raw.WebGLRenderingContext) {
+
+  case class Drawable(mode: Int, vbo: WebGLBuffer, ibo: WebGLBuffer, texture: WebGLTexture, count: Int)
+
+  // todo: indexed vertices
+  // todo: VAO (is not in WebGL 1.0, is in OES_vertex_array_object - is it worth it?)
+  class DrawableBuilder(val callback: Drawable => {}, val mode: Int, val image: HTMLImageElement)(implicit gl: WebGLRenderingContext) {
+    val positions = scala.collection.mutable.Buffer[Vector3]()
+    val uvs = scala.collection.mutable.Buffer[Vector2]()
+    val colors = scala.collection.mutable.Buffer[Color]()
+
+    val indices = scala.collection.mutable.Buffer[Int]()
+
+    def addVertex(position: Vector3, uv: Vector2, color: Color): DrawableBuilder = {
+      positions += position
+      uvs += uv
+      colors += color
+      this
+    }
+
+    def addVertex(position: Vector3, color: Color): DrawableBuilder = {
+      positions += position
+      uvs += Vector2(position.x, position.y)
+      colors += color
+      this
+    }
+
+    def addTriangle(i: Int, j: Int, k: Int): DrawableBuilder = {
+      indices += i
+      indices += j
+      indices += k
+      this
+    }
+
+    val white = Color(1, 1, 1, 1)
+
+    def addVertex(position: Vector3): DrawableBuilder = {
+      positions += position
+      uvs += Vector2(position.x, position.y)
+      colors += white
+      this
+    }
+
+    def compile: Drawable = {
+      val values = new Float32Array(strideInFloats * positions.size)
+
+      positions.zipWithIndex.foreach { case (e, i) => e.toArray(values, strideInFloats * i) }
+      uvs.zipWithIndex.foreach { case (e, i) => e.toArray(values, strideInFloats * i + 3) }
+      colors.zipWithIndex.foreach { case (e, i) => e.toArray(values, strideInFloats * i + 3 + 2) }
+
+      val vbo = gl.createBuffer()
+      gl.bindBuffer(ARRAY_BUFFER, vbo)
+      gl.bufferData(ARRAY_BUFFER, values, STATIC_DRAW)
+
+      // todo: make sure 8 bits are enough
+      val indices = new Int8Array(this.indices.size)
+      this.indices.zipWithIndex.foreach { case (e, i) => indices(i) = e.toByte }
+
+      val ibo = gl.createBuffer()
+      gl.bindBuffer(ELEMENT_ARRAY_BUFFER, ibo)
+      gl.bufferData(ELEMENT_ARRAY_BUFFER, indices, STATIC_DRAW)
+
+      val drawable = Drawable(mode, vbo, ibo, Texture.toTexture(image), this.indices.size)
+
+      callback(drawable)
+      drawable
+    }
+
+    def buildSquare(x0: Int, y0: Int, z: Int) = {
+      val start = positions.size
+      addVertex(Vector3(x0, y0, z))
+        .addVertex(Vector3(x0 + 1, y0, z))
+        .addVertex(Vector3(x0 + 1, y0 + 1, z))
+        .addVertex(Vector3(x0, y0 + 1, z))
+        .addTriangle(start + 0, start + 1, start + 2)
+        .addTriangle(start + 0, start + 2, start + 3)
+    }
+  }
+
   val vShader = gl.createShader(VERTEX_SHADER)
   val vertText =
     "uniform mat4 projectionMatrix;" +
@@ -107,6 +121,7 @@ class ProgramAll(implicit val gl: raw.WebGLRenderingContext) {
   val projectionMatrix = gl.getUniformLocation(program, "projectionMatrix")
   val viewMatrix = gl.getUniformLocation(program, "viewMatrix")
   val texture = gl.getUniformLocation(program, "texture")
+
   val position = gl.getAttribLocation(program, "position")
   val uv = gl.getAttribLocation(program, "texCoord")
   val color = gl.getAttribLocation(program, "color")
@@ -122,29 +137,37 @@ class ProgramAll(implicit val gl: raw.WebGLRenderingContext) {
     gl.enableVertexAttribArray(this.color)
   }
 
+  val floatSize = 4
+  val positionOffset = 0
+  val positionSize = 3 * floatSize
+  val uvOffset = positionOffset + positionSize
+  val uvSize = 2 * floatSize
+  val colorOffset = uvOffset + uvSize
+  val colorSize = 4 * floatSize
+  val strideInBytes = positionSize + uvSize + colorSize
+  val strideInFloats = strideInBytes / floatSize
+
   def render(projectionMatrix: Matrix4, viewMatrix: Matrix4) = {
     use
 
+    // use unit 0
+    gl.uniform1i(texture, 0)
     gl.uniformMatrix4fv(this.projectionMatrix, false, projectionMatrix.asArray)
     gl.uniformMatrix4fv(this.viewMatrix, false, viewMatrix.asArray)
 
     drawables.foreach { d =>
+      gl.bindBuffer(ARRAY_BUFFER, d.vbo)
+      gl.bindBuffer(ELEMENT_ARRAY_BUFFER, d.ibo)
+
       // set up unit 0
       gl.activeTexture(TEXTURE0)
       gl.bindTexture(TEXTURE_2D, d.texture)
-      // use unit 0
-      gl.uniform1i(texture, 0)
 
-      gl.bindBuffer(ARRAY_BUFFER, d.position.buffer)
-      gl.vertexAttribPointer(this.position, 3, FLOAT, false, d.position.stride, d.position.offset)
+      gl.vertexAttribPointer(this.position, 3, FLOAT, false, strideInBytes, positionOffset)
+      gl.vertexAttribPointer(this.uv, 2, FLOAT, false, strideInBytes, uvOffset)
+      gl.vertexAttribPointer(this.color, 4, FLOAT, false, strideInBytes, colorOffset)
 
-      gl.bindBuffer(ARRAY_BUFFER, d.uv.buffer)
-      gl.vertexAttribPointer(this.uv, 2, FLOAT, false, d.uv.stride, d.uv.offset)
-
-      gl.bindBuffer(ARRAY_BUFFER, d.color.buffer)
-      gl.vertexAttribPointer(this.color, 4, FLOAT, false, d.color.stride, d.color.offset)
-
-      gl.drawArrays(d.mode, 0, d.count)
+      gl.drawElements(d.mode, d.count, UNSIGNED_BYTE, 0)
     }
 
     unuse
