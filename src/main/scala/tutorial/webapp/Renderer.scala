@@ -3,6 +3,7 @@ package tutorial.webapp
 import org.scalajs.dom.raw.WebGLRenderingContext._
 import org.scalajs.dom.raw.{HTMLImageElement, UIEvent}
 import org.scalajs.dom.{html, raw, _}
+import tutorial.webapp.NormalAxis._
 
 import scala.collection.mutable
 
@@ -48,7 +49,7 @@ class Renderer(val images: Map[String, HTMLImageElement]) {
     }
 
     gl.clearColor(0.0, 0.0, 0.0, 1.0)
-    gl.enable(CULL_FACE)
+//    gl.enable(CULL_FACE)
     gl.enable(DEPTH_TEST)
 
     // todo: macro generate ProgramX from its uniforms/attributes and shader sources
@@ -58,20 +59,24 @@ class Renderer(val images: Map[String, HTMLImageElement]) {
       var dy = 0f
       drawables += { () =>
         if (activeCommands.contains("left"))
-          dx -= 0.01f
-        if (activeCommands.contains("right"))
           dx += 0.01f
+        if (activeCommands.contains("right"))
+          dx -= 0.01f
         if (activeCommands.contains("down"))
-          dy -= 0.01f
-        if (activeCommands.contains("up"))
           dy += 0.01f
+        if (activeCommands.contains("up"))
+          dy -= 0.01f
         val projectionMatrix = new Matrix4(45, canvas.width.toFloat / canvas.height, .1f, 10)
         val viewMatrix = new Matrix4(dx, dy, 4)
         program.render(projectionMatrix, viewMatrix)
       }
 
       program.newDrawable(images("stucco.jpg"))
-        .buildSquare(0, 0, 0)
+        .buildSquare(0, 0, 0, X)
+        .buildSquare(0, 0, 0, Y)
+        .buildSquare(0, 0, 0, Z)
+        .buildSquare(1, 0, 0, X)
+        .buildSquare(0, 1, 0, Y)
         .compile
 
       program.newDrawable(images("stone.jpg"))

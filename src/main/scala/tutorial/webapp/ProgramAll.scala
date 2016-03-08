@@ -6,6 +6,12 @@ import org.scalajs.dom.raw.{HTMLImageElement, WebGLBuffer, WebGLRenderingContext
 
 import scala.scalajs.js.typedarray.{Float32Array, Int8Array}
 
+object NormalAxis {
+  val Z = 0
+  val Y = 1
+  val X = 2
+}
+
 class ProgramAll(implicit val gl: raw.WebGLRenderingContext) {
 
   // todo: VAO (is not in WebGL 1.0, is in OES_vertex_array_object - is it worth it?)
@@ -13,23 +19,18 @@ class ProgramAll(implicit val gl: raw.WebGLRenderingContext) {
   // All attributes are interleaved in a single VBO.
   case class Drawable(mode: Int, vbo: WebGLBuffer, ibo: WebGLBuffer, texture: WebGLTexture, count: Int)
 
-  class DrawableBuilder(val callback: Drawable => {}, val mode: Int, val image: HTMLImageElement)(implicit gl: WebGLRenderingContext) {
+  class DrawableBuilder(val mode: Int, val image: HTMLImageElement)(implicit gl: WebGLRenderingContext) {
     val positions = scala.collection.mutable.Buffer[Vector3]()
     val uvs = scala.collection.mutable.Buffer[Vector2]()
     val colors = scala.collection.mutable.Buffer[Color]()
 
     val indices = scala.collection.mutable.Buffer[Int]()
 
-    def addVertex(position: Vector3, uv: Vector2, color: Color): DrawableBuilder = {
+    val white = Color(1, 1, 1, 1)
+
+    def addVertex(position: Vector3, uv: Vector2, color: Color = white): DrawableBuilder = {
       positions += position
       uvs += uv
-      colors += color
-      this
-    }
-
-    def addVertex(position: Vector3, color: Color): DrawableBuilder = {
-      positions += position
-      uvs += Vector2(position.x, position.y)
       colors += color
       this
     }
@@ -38,15 +39,6 @@ class ProgramAll(implicit val gl: raw.WebGLRenderingContext) {
       indices += i
       indices += j
       indices += k
-      this
-    }
-
-    val white = Color(1, 1, 1, 1)
-
-    def addVertex(position: Vector3): DrawableBuilder = {
-      positions += position
-      uvs += Vector2(position.x, position.y)
-      colors += white
       this
     }
 
@@ -71,16 +63,23 @@ class ProgramAll(implicit val gl: raw.WebGLRenderingContext) {
 
       val drawable = Drawable(mode, vbo, ibo, Texture.toTexture(image), this.indices.size)
 
-      callback(drawable)
+      drawables += drawable
+
       drawable
     }
 
-    def buildSquare(x0: Int, y0: Int, z: Int) = {
+    val d = List(List(0, 1, 1, 0), List(0, 0, 1, 1), List(0, 0, 0, 0))
+
+    // A utility method, adds nothing that cannot be done without it.
+    def buildSquare(x0: Int, y0: Int, z0: Int, normalAxis: Int = NormalAxis.Z) = {
+      val dx = d((0 + normalAxis) % 3)
+      val dy = d((1 + normalAxis) % 3)
+      val dz = d((2 + normalAxis) % 3)
       val start = positions.size
-      addVertex(Vector3(x0, y0, z))
-        .addVertex(Vector3(x0 + 1, y0, z))
-        .addVertex(Vector3(x0 + 1, y0 + 1, z))
-        .addVertex(Vector3(x0, y0 + 1, z))
+      addVertex(Vector3(x0 + dx(0), y0 + dy(0), z0 + dz(0)), Vector2(d(0)(0), d(1)(0)))
+        .addVertex(Vector3(x0 + dx(1), y0 + dy(1), z0 + dz(1)), Vector2(d(0)(1), d(1)(1)))
+        .addVertex(Vector3(x0 + dx(2), y0 + dy(2), z0 + dz(2)), Vector2(d(0)(2), d(1)(2)))
+        .addVertex(Vector3(x0 + dx(3), y0 + dy(3), z0 + dz(3)), Vector2(d(0)(3), d(1)(3)))
         .addTriangle(start + 0, start + 1, start + 2)
         .addTriangle(start + 0, start + 2, start + 3)
     }
@@ -129,7 +128,7 @@ class ProgramAll(implicit val gl: raw.WebGLRenderingContext) {
 
   val drawables = scala.collection.mutable.Buffer[Drawable]()
 
-  def newDrawable(image: HTMLImageElement, mode: Int = TRIANGLES) = new DrawableBuilder((d: Drawable) => drawables += d, mode, image)
+  def newDrawable(image: HTMLImageElement, mode: Int = TRIANGLES) = new DrawableBuilder(mode, image)
 
   def use = {
     gl.useProgram(program)
