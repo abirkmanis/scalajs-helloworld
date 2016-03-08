@@ -29,6 +29,7 @@ class Renderer(val images: Map[String, HTMLImageElement]) {
 
   def start(): Unit = {
     val activeCommands = new mutable.HashSet[String]()
+    val handledCommands = new mutable.HashSet[String]()
 
     {
       val codesToCommands = Map(87 -> "up", 65 -> "left", 83 -> "down", 68 -> "right")
@@ -39,6 +40,7 @@ class Renderer(val images: Map[String, HTMLImageElement]) {
       document.onkeyup = { e: KeyboardEvent =>
         val command = codesToCommands.getOrElse(e.keyCode, "")
         activeCommands -= command
+        handledCommands -= command
       }
     }
 
@@ -51,18 +53,26 @@ class Renderer(val images: Map[String, HTMLImageElement]) {
       val program = new ProgramAll()
       var dx = 2f
       var dy = 0f
+      var dxa = dx
+      var dya = dy
       drawables += { () =>
-        if (activeCommands.contains("left"))
-          dx += 0.02f
-        if (activeCommands.contains("right"))
-          dx -= 0.02f
-        if (activeCommands.contains("down"))
-          dy += 0.02f
-        if (activeCommands.contains("up"))
-          dy -= 0.02f
+        val hotCommands = activeCommands -- handledCommands
+        if (hotCommands.contains("left"))
+          dx += 1
+        if (hotCommands.contains("right"))
+          dx -= 1
+        if (hotCommands.contains("down"))
+          dy += 1
+        if (hotCommands.contains("up"))
+          dy -= 1
+        handledCommands ++= activeCommands
+
+        dxa -= (dxa - dx) * 0.1f
+        dya -= (dya - dy) * 0.1f
+
         val projectionMatrix = new Matrix4(45, canvas.width.toFloat / canvas.height, .1f, 10)
         console.log(dx + ", " + dy)
-        val viewMatrix = new Matrix4(dx, dy, 4)
+        val viewMatrix = new Matrix4(dxa, dya, 4)
         program.render(projectionMatrix, viewMatrix)
       }
 
