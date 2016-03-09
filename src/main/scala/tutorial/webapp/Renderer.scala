@@ -3,9 +3,9 @@ package tutorial.webapp
 import org.scalajs.dom.raw.WebGLRenderingContext._
 import org.scalajs.dom.raw.{HTMLImageElement, UIEvent}
 import org.scalajs.dom.{html, raw, _}
-import tutorial.webapp.NormalAxis._
 
 import scala.collection.mutable
+import scala.util.Random
 
 class Renderer(val images: Map[String, HTMLImageElement]) {
   val canvas = document.createElement("canvas").asInstanceOf[html.Canvas]
@@ -48,13 +48,17 @@ class Renderer(val images: Map[String, HTMLImageElement]) {
     gl.enable(CULL_FACE)
     gl.enable(DEPTH_TEST)
 
-    // todo: macro generate ProgramX from its uniforms/attributes and shader sources
+    val r = new Random()
+    val map = (-6 to 6).flatMap { x => (-4 to 4).map { y => ((x, y), r.nextInt(4)) } }.toMap
+    console.log(map.toString)
+
     {
       val program = new ProgramAll()
-      var dx = 2f
-      var dy = 0f
+      var dx = -.5f
+      var dy = -.5f
       var dxa = dx
       var dya = dy
+      var dza = 0f
       drawables += { () =>
         val hotCommands = activeCommands -- handledCommands
         if (hotCommands.contains("left"))
@@ -65,47 +69,19 @@ class Renderer(val images: Map[String, HTMLImageElement]) {
           dy += 1
         if (hotCommands.contains("up"))
           dy -= 1
-        handledCommands ++= activeCommands
+        handledCommands ++= hotCommands
 
+        var dz = 5f - map.getOrElse((-dx.ceil.toInt, -dy.ceil.toInt), 4)
         dxa -= (dxa - dx) * 0.1f
         dya -= (dya - dy) * 0.1f
+        dza -= (dza - dz) * 0.1f
 
-        val projectionMatrix = new Matrix4(45, canvas.width.toFloat / canvas.height, .1f, 10)
-        console.log(dx + ", " + dy)
-        val viewMatrix = new Matrix4(dxa, dya, 4)
+        val projectionMatrix = new Matrix4(30, canvas.width.toFloat / canvas.height, .1f, 10)
+        val viewMatrix = new Matrix4(dxa, dya, dza)
         program.render(projectionMatrix, viewMatrix)
       }
 
-      program.newDrawable(images("stucco.jpg"))
-        .buildSquare(0, 0, 0, X)
-        .buildSquare(0, 0, 0, Y)
-        .buildSquare(0, 0, 0, Z)
-        .buildSquare(1, 0, 0, _X)
-        .buildSquare(0, 1, 0, _Y)
-        .compile
-
-      program.newDrawable(images("stone.jpg"))
-        .buildSquare(0, 1, 1)
-        .buildSquare(1, 0, 1)
-        .buildSquare(1, 1, 1)
-        .buildSquare(-1, 1, 1)
-        .buildSquare(-1, 0, 1)
-        .buildSquare(-1, -1, 1)
-        .buildSquare(0, -1, 1)
-        .buildSquare(1, -1, 1)
-        .compile
-
-      program.newDrawable(images("metal.jpg"))
-        .buildSquare(-2, 1, 2)
-        .buildSquare(-2, 0, 2)
-        .buildSquare(-2, -1, 2)
-        .compile
-
-      program.newDrawable(images("scratched.jpg"))
-        .buildSquare(-1, 1, 1, X)
-        .buildSquare(-1, 0, 1, X)
-        .buildSquare(-1, -1, 1, X)
-        .compile
+      program.buildGrid(map, Seq(images("stucco.jpg"), images("stone.jpg"), images("metal.jpg"), images("scratched.jpg")))
     }
 
     resize()

@@ -3,8 +3,9 @@ package tutorial.webapp
 import org.scalajs.dom.raw
 import org.scalajs.dom.raw.WebGLRenderingContext._
 import org.scalajs.dom.raw.{HTMLImageElement, WebGLBuffer, WebGLRenderingContext, WebGLTexture}
+import tutorial.webapp.NormalAxis._
 
-import scala.scalajs.js.typedarray.{Float32Array, Int8Array}
+import scala.scalajs.js.typedarray.{Float32Array, Int16Array}
 
 object NormalAxis {
   val Z = 0
@@ -16,7 +17,7 @@ object NormalAxis {
 }
 
 class ProgramAll(implicit val gl: raw.WebGLRenderingContext) {
-
+  // todo: macro generate ProgramX from its uniforms/attributes and shader sources (also https://github.com/AODtorusan/scala-glsl)
   // todo: VAO (is not in WebGL 1.0, is in OES_vertex_array_object - is it worth it?)
   // Encapsulates data needed for a single call to a glDraw* - glDrawElements in this case.
   // All attributes are interleaved in a single VBO.
@@ -57,8 +58,8 @@ class ProgramAll(implicit val gl: raw.WebGLRenderingContext) {
       gl.bufferData(ARRAY_BUFFER, values, STATIC_DRAW)
 
       // todo: make sure 8 bits are enough
-      val indices = new Int8Array(this.indices.size)
-      this.indices.zipWithIndex.foreach { case (e, i) => indices(i) = e.toByte }
+      val indices = new Int16Array(this.indices.size)
+      this.indices.zipWithIndex.foreach { case (e, i) => indices(i) = e.toShort }
 
       val ibo = gl.createBuffer()
       gl.bindBuffer(ELEMENT_ARRAY_BUFFER, ibo)
@@ -79,7 +80,7 @@ class ProgramAll(implicit val gl: raw.WebGLRenderingContext) {
       val dy = d((1 + normalAxis) % 3)
       val dz = d((2 + normalAxis) % 3)
       val start = positions.size
-      (0 to 3).foreach { i => addVertex(Vector3(x0 + dx(i), y0 + dy(i), z0 + dz(i)), Vector2(d(0)(i), d(1)(i)), Color(x0 + dx(i), y0 + dy(i), z0 + dz(i), 1)) }
+      (0 to 3).foreach { i => addVertex(Vector3(x0 + dx(i), y0 + dy(i), z0 + dz(i)), Vector2(d(0)(i), d(1)(i))) } //, Color(x0 + dx(i), y0 + dy(i), z0 + dz(i), 1)) }
       if (normalAxis < 3) {
         addTriangle(start + 0, start + 1, start + 2)
         addTriangle(start + 0, start + 2, start + 3)
@@ -136,6 +137,34 @@ class ProgramAll(implicit val gl: raw.WebGLRenderingContext) {
 
   def newDrawable(image: HTMLImageElement, mode: Int = TRIANGLES) = new DrawableBuilder(mode, image)
 
+  def buildGrid(heightMap: Map[(Int, Int), Int], textures: Seq[HTMLImageElement]): Unit = {
+    val squares = heightMap.flatMap { case ((i, j), h) =>
+      Seq((i, j, h, Z)) ++
+        heightMap.get((i - 1, j)).toList.flatMap {
+          west =>
+            if (west < h) {
+              (west to h - 1).map { g => (i, j, g, _X) }
+            } else {
+              (h to west - 1).map { g => (i, j, g, X) }
+            }
+        } ++
+        heightMap.get((i, j - 1)).toList.flatMap {
+          south =>
+            if (south < h) {
+              (south to h - 1).map { g => (i, j, g, _Y) }
+            } else {
+              (h to south - 1).map { g => (i, j, g, Y) }
+            }
+        }
+    }
+    squares.groupBy { case (i, j, h, n) => h }.foreach {
+      case (h, sqs) =>
+        val d = newDrawable(textures(h))
+        sqs.foreach { case (x, y, z, n) => d.buildSquare(x, y, z, n) }
+        d.compile
+    }
+  }
+
   def use = {
     gl.useProgram(program)
     gl.enableVertexAttribArray(this.position)
@@ -173,7 +202,7 @@ class ProgramAll(implicit val gl: raw.WebGLRenderingContext) {
       gl.vertexAttribPointer(this.uv, 2, FLOAT, false, strideInBytes, uvOffset)
       gl.vertexAttribPointer(this.color, 4, FLOAT, false, strideInBytes, colorOffset)
 
-      gl.drawElements(d.mode, d.count, UNSIGNED_BYTE, 0)
+      gl.drawElements(d.mode, d.count, UNSIGNED_SHORT, 0)
     }
 
     unuse
